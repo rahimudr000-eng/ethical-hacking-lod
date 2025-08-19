@@ -1,0 +1,43 @@
+#!/data/data/com.termux/files/usr/bin/bash
+# Ethical Hacking Lab Auto Setup Script (by ChatGPT)
+
+echo "[*] Updating Termux..."
+pkg update && pkg upgrade -y
+pkg install wget curl git proot tar nano -y
+
+echo "[*] Installing Kali NetHunter (Rootless)..."
+wget -O install-nethunter-termux https://offs.ec/2MceZWr
+chmod +x install-nethunter-termux
+./install-nethunter-termux
+
+echo "[*] Entering Kali..."
+nethunter <<EOF
+sudo apt update
+sudo apt install -y apache2 mariadb-server php libapache2-mod-php php-mysqli php-gd php-curl php-xml php-zip git
+
+echo "[*] Setting up DVWA..."
+cd /var/www/html
+sudo git clone https://github.com/digininja/DVWA.git
+cd DVWA/config
+sudo cp config.inc.php.dist config.inc.php
+sudo sed -i "s/'db_user'.*/'db_user'\] = 'dvwa';/" config.inc.php
+sudo sed -i "s/'db_password'.*/'db_password'\] = 'p@ssw0rd';/" config.inc.php
+sudo sed -i "s/'db_database'.*/'db_database'\] = 'dvwa';/" config.inc.php
+
+echo "[*] Configuring MariaDB..."
+sudo service mysql start
+sudo mysql -u root -e "CREATE DATABASE dvwa; CREATE USER 'dvwa'@'localhost' IDENTIFIED BY 'p@ssw0rd'; GRANT ALL PRIVILEGES ON dvwa.* TO 'dvwa'@'localhost'; FLUSH PRIVILEGES;"
+
+echo "[*] Fixing permissions..."
+sudo chown -R www-data:www-data /var/www/html/DVWA
+sudo chmod -R 755 /var/www/html/DVWA
+sudo chmod 777 /var/www/html/DVWA/hackable/uploads/
+sudo chmod 777 /var/www/html/DVWA/external/phpids/0.6/lib/IDS/tmp/phpids_log.txt 2>/dev/null || true
+
+echo "[*] Starting Apache..."
+sudo service apache2 start
+EOF
+
+echo "[*] Setup complete!"
+echo "Now open your browser and go to: http://127.0.0.1/DVWA/setup.php"
+echo "Default login: admin / password"
